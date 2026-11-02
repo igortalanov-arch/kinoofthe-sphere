@@ -1,0 +1,1513 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Король сферы. Бум.</title>
+<script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=T-PrxfRoQ1pH3QKpxuRgU1Y21wBhDmNHeNIW1IgtmDLoGzSgbHFlvL7uJDio23qw1X_UjaA9BO32-UfjTXYM0gJ51RsC84jbpwQ1lDAoS5ryTig5C5kP81lMwz21WW1eMMDfKLj2B297Vws7dFeDUg" charset="UTF-8"></script><style>
+:root{
+  --bg:#eef3f8; --panel:rgba(255,255,255,.92); --panel-solid:#ffffff;
+  --ink:#1e3448; --muted:#6f889c; --line:#b9cddd;
+  --cell:#dde7f0; --cell-pent:#cbd9e6; --cell-stroke:#aec3d5;
+  --blue:#2f7fd1; --blue-fill:#bcd8f6; --blue-deep:#1c5b9b;
+  --red:#d8403a; --red-fill:#f8cbc8; --red-deep:#a32a24;
+  --gold:#f2b735; --accent:#2f7fd1;
+}
+body.dark{
+  --bg:#0f1a24; --panel:rgba(24,38,52,.94); --panel-solid:#182634;
+  --ink:#e4eef7; --muted:#7e98ae; --line:#33495c;
+  --cell:#25384a; --cell-pent:#1c2b3a; --cell-stroke:#3a5068;
+  --blue:#5fa8e8; --blue-fill:#1f4f7d; --blue-deep:#8cc4f5;
+  --red:#ef6b64; --red-fill:#7a2b27; --red-deep:#ffa39d;
+  --gold:#ffcc4d; --accent:#5fa8e8;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font:15px Inter,"Segoe UI",Arial,sans-serif;
+  height:100dvh;overflow:hidden;-webkit-tap-highlight-color:transparent;
+}
+button{
+  border:1px solid var(--line);border-radius:13px;background:var(--panel);
+  color:var(--ink);padding:10px 14px;font-weight:700;cursor:pointer;
+  font-family:inherit;font-size:15px;
+}
+button:active{transform:scale(.96)}
+button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* ---------- HUD ---------- */
+.top{
+  position:absolute;z-index:3;top:12px;left:50%;transform:translateX(-50%);
+  width:min(560px,94vw);padding:10px 16px;border-radius:18px;
+  background:var(--panel);box-shadow:0 5px 24px #3454;backdrop-filter:blur(8px);
+}
+.score{display:flex;justify-content:space-between;align-items:center;font-weight:800;gap:8px}
+.score .side{display:flex;align-items:center;gap:6px;font-size:14px}
+.score .glyph{font-size:16px;line-height:1}
+.side.x .glyph{color:var(--blue)}
+.side.o .glyph{color:var(--red)}
+.dist{font-size:11px;font-weight:800;color:var(--muted);opacity:.95;
+  padding:1px 6px;border-radius:8px;background:var(--cell)}
+.dist::before{content:"путь "}
+#turn-label{
+  font-size:14px;font-weight:800;color:var(--accent);
+  padding:3px 10px;border-radius:10px;background:var(--cell);white-space:nowrap;
+}
+.meta{
+  display:flex;justify-content:space-between;gap:10px;margin-top:6px;
+  font-size:12px;color:var(--muted);align-items:baseline;
+}
+.meta>span{white-space:nowrap}
+#hint{overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;min-width:0}
+
+/* ---------- canvas ---------- */
+#scene{width:100vw;height:100dvh;display:block;touch-action:none}
+
+/* ---------- controls ---------- */
+.controls{
+  position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
+  display:flex;gap:6px;padding:7px;border-radius:16px;background:var(--panel);
+  box-shadow:0 5px 24px #3454;z-index:3;
+}
+.controls button{
+  padding:9px 11px;font-size:15px;min-width:40px;line-height:1;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.controls svg,.row svg{width:19px;height:19px;display:block;stroke:currentColor;fill:none;
+  stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+#difficulty{min-width:104px;font-size:13px}
+
+/* ---------- minimap ---------- */
+.minimap{
+  position:absolute;right:14px;bottom:14px;z-index:3;
+  padding:8px;border-radius:16px;background:var(--panel);
+  box-shadow:0 5px 24px #3454;transition:.18s;
+}
+.minimap.hidden{transform:translateY(12px) scale(.9);opacity:0;pointer-events:none}
+#map{display:block;width:132px;height:132px;border-radius:10px}
+.map-cap{font-size:11px;font-weight:800;color:var(--muted);text-align:center;margin-top:5px;letter-spacing:.06em}
+
+/* ---------- toast ---------- */
+.toast{
+  position:absolute;left:50%;top:104px;transform:translateX(-50%);
+  background:#16324a;color:#fff;padding:9px 18px;border-radius:20px;
+  opacity:0;transition:.22s;pointer-events:none;z-index:4;
+  font-size:13px;font-weight:700;max-width:90vw;text-align:center;
+}
+.toast.show{opacity:1}
+
+/* ---------- modals ---------- */
+.modal{position:fixed;inset:0;background:#0d1c2a99;display:none;place-items:center;z-index:8;padding:16px}
+.modal.show{display:grid}
+.card{
+  background:var(--panel-solid);color:var(--ink);padding:24px;border-radius:22px;
+  text-align:center;width:min(400px,92vw);box-shadow:0 20px 60px #0006;
+  max-height:92dvh;overflow:auto;
+}
+.card h1{margin:0 0 6px;font-size:23px}
+.card h2{margin:18px 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.card p{margin:0 0 14px;color:var(--muted);font-size:14px;line-height:1.5}
+.seg{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.seg button{flex:1 1 0;min-width:88px;padding:10px 8px;font-size:14px}
+.primary{
+  width:100%;margin-top:20px;padding:14px;border:0;border-radius:14px;
+  background:var(--accent);color:#fff;font-size:16px;font-weight:800;
+}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;
+  border-bottom:1px solid var(--line)}
+.row:last-of-type{border-bottom:0}
+.row span{font-size:14px;font-weight:700}
+.row button{padding:7px 12px;font-size:12px;font-weight:800;letter-spacing:.04em;min-width:96px}
+.note{font-size:12px;color:var(--muted);margin-top:14px;line-height:1.45}
+.link{background:none;border:0;color:var(--accent);font-weight:800;cursor:pointer;font-size:14px;padding:6px}
+
+/* ---------- tutorial ---------- */
+.tut-figure{margin:10px auto 4px;display:block}
+.tut-nav{display:flex;justify-content:space-between;align-items:center;margin-top:14px;gap:8px}
+#tutorial .card h1{font-size:20px}
+.tut-list{text-align:left;margin:0 auto;max-width:290px;font-size:13px;color:var(--muted);line-height:1.5;padding-left:18px}
+.tut-list li{margin-bottom:4px}
+
+/* ---------- toss ---------- */
+.toss{
+  position:fixed;inset:0;display:grid;place-items:center;
+  background:#0a1926aa;opacity:0;pointer-events:none;transition:.2s;z-index:9;
+}
+.toss.show{opacity:1;pointer-events:auto}
+.toss-inner{display:grid;justify-items:center;gap:18px}
+.coin{
+  width:118px;height:118px;border-radius:50%;
+  background:radial-gradient(circle at 34% 30%,#fff6c8,#ffd54a 45%,#d99b13 100%);
+  display:grid;place-items:center;font-size:56px;font-weight:900;color:#5a3d00;
+  box-shadow:0 12px 40px #0007,inset 0 -6px 14px #0002;
+  transform-style:preserve-3d;
+}
+.toss.flip .coin{animation:spin .42s linear infinite}
+.coin.result{animation:pop .4s cubic-bezier(.2,1.6,.4,1)}
+@keyframes spin{from{transform:rotateY(0)}to{transform:rotateY(360deg)}}
+@keyframes pop{0%{transform:scale(.7)}70%{transform:scale(1.12)}100%{transform:scale(1)}}
+.toss-label{color:#fff;font-weight:800;font-size:15px;text-shadow:0 2px 12px #0009;text-align:center;max-width:80vw}
+
+@media(max-width:760px){
+  .top{top:8px;padding:9px 12px;width:94vw}
+  .score .side{font-size:12px}
+  #turn-label{font-size:12px;padding:2px 8px}
+  .meta{font-size:11px;margin-top:5px}
+  #hint{font-size:11px}
+  .toast{top:88px;font-size:12px}
+  .controls{bottom:8px;gap:5px;padding:6px}
+  .controls button{padding:8px 8px;min-width:36px;font-size:14px}
+  .controls svg{width:18px;height:18px}
+  .lbl{display:none}
+  #difficulty{min-width:0;font-size:0;padding:8px 10px}
+  #difficulty::after{content:"🤖";font-size:14px}
+  .minimap{right:8px;bottom:64px;padding:6px}
+  #map{width:104px;height:104px}
+  .map-cap{display:none}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="score">
+    <span class="side x"><span class="glyph">×</span> <b id="score-x">0</b> <span class="dist" id="dist-x"></span></span>
+    <span id="turn-label">Твой ход</span>
+    <span class="side o"><span class="dist" id="dist-o"></span> <b id="score-o">0</b> <span class="glyph">●</span></span>
+  </div>
+  <div class="meta">
+    <span id="hint">Соедини свои шапки. Перекрой путь сопернику.</span>
+    <span id="mode-label">PvE · Medium</span>
+  </div>
+</header>
+
+<canvas id="scene" aria-label="Игровое поле: сфера из 92 клеток"></canvas>
+
+<div class="minimap" id="minimap">
+  <canvas id="map" width="264" height="264"></canvas>
+  <div class="map-cap">КАРТА</div>
+</div>
+
+<div class="controls">
+  <button id="restart" title="Новая партия" aria-label="Новая партия">
+    <svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v4h-4"/></svg>
+  </button>
+  <button id="zoom-out" title="Уменьшить" aria-label="Уменьшить">
+    <svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
+  </button>
+  <button id="zoom-in" title="Увеличить" aria-label="Увеличить">
+    <svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+  </button>
+  <button id="reset" title="Сброс поворота" aria-label="Сброс поворота">
+    <svg viewBox="0 0 24 24"><path d="M4 10a8 8 0 1 1 .6 6"/><path d="M4 4v6h6"/></svg>
+  </button>
+  <button id="difficulty" title="Сложность ИИ">
+    <svg viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="11" rx="3"/><path d="M12 4v4"/><path d="M9 13h.01"/><path d="M15 13h.01"/></svg>
+    <span class="lbl">Medium</span>
+  </button>
+  <button id="theme" title="Тема" aria-label="Тема">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor" stroke="none"/></svg>
+  </button>
+  <button id="sound" title="Звук" aria-label="Звук"></button>
+  <button id="map-btn" title="Карта" aria-label="Карта">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c2.6 2.6 2.6 13.4 0 16M12 4c-2.6 2.6-2.6 13.4 0 16"/></svg>
+  </button>
+  <button id="settings-btn" title="Настройки" aria-label="Настройки">
+    <svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 12h4M12 12h8M4 17h9M17 17h3"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="15" cy="17" r="2"/></svg>
+  </button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="toss" id="toss-overlay">
+  <div class="toss-inner">
+    <div class="coin" id="coin">🎲</div>
+    <div class="toss-label" id="toss-label">Жребий…</div>
+  </div>
+</div>
+
+<!-- диалог новой игры -->
+<div class="modal" id="newgame">
+  <div class="card">
+    <h1>Король сферы. Бум.</h1>
+    <p>Соедини свои земли. Отрежь чужие.</p>
+
+    <h2>Режим</h2>
+    <div class="seg" id="ng-mode">
+      <button data-v="pve" class="active">PvE</button>
+      <button data-v="hotseat">Hot-seat</button>
+    </div>
+
+    <h2 id="ng-sym-title">Играть за</h2>
+    <div class="seg" id="ng-sym">
+      <button data-v="X" class="active">× Синие</button>
+      <button data-v="O">● Красные</button>
+      <button data-v="random">Случайно</button>
+    </div>
+
+    <button class="primary" id="ng-start">Начать</button>
+    <div class="note">Цвет и первый ход разыгрываются жребием.</div>
+  </div>
+</div>
+
+<!-- настройки -->
+<div class="modal" id="settings">
+  <div class="card">
+    <h1>Настройки</h1>
+
+    <h2>Режим</h2>
+    <div class="seg" id="st-mode">
+      <button data-v="pve">PvE</button>
+      <button data-v="hotseat">Hot-seat</button>
+    </div>
+
+    <h2>Сложность ИИ</h2>
+    <div class="seg" id="st-level">
+      <button data-v="1">Easy</button>
+      <button data-v="2">Medium</button>
+      <button data-v="3">Hard</button>
+    </div>
+
+    <h2>Прочее</h2>
+    <div class="row"><span>Тема</span><button id="st-theme">СВЕТЛАЯ</button></div>
+    <div class="row"><span>Звук</span><button id="st-sound"></button></div>
+    <div class="row"><span>Карта</span><button id="st-map">ВКЛ</button></div>
+
+    <h2>Как играть</h2>
+    <div class="note" style="margin-top:0;text-align:left">
+      Ставь по одному камню на свободную клетку. Соедини свои две шапки непрерывной
+      цепочкой по сторонам клеток — и победишь. Сопернику нужно соединить свои шапки
+      в другом направлении: перекрой ему путь.
+    </div>
+
+    <button class="primary" id="st-newgame">Новая партия</button>
+    <button class="link" id="st-close">Закрыть</button>
+  </div>
+</div>
+
+<!-- туториал -->
+<div class="modal" id="tutorial">
+  <div class="card">
+    <div class="tut-step" data-step="1">
+      <h1>Твоя цель — соединить синие шапки</h1>
+      <p>Синие шапки сверху и снизу — твои. Соедини их непрерывной цепочкой своих камней.</p>
+      <svg class="tut-figure" width="180" height="130" viewBox="0 0 180 130" aria-hidden="true">
+        <circle cx="90" cy="65" r="54" fill="none" stroke="var(--cell-stroke)" stroke-width="1.5"/>
+        <path d="M56 22a54 54 0 0 1 68 0z" fill="var(--blue-fill)" stroke="var(--blue)" stroke-width="1.5"/>
+        <path d="M56 108a54 54 0 0 0 68 0z" fill="var(--blue-fill)" stroke="var(--blue)" stroke-width="1.5"/>
+        <path d="M90 26c-16 12 16 26 0 39s16 26 0 39" fill="none" stroke="var(--gold)"
+              stroke-width="4" stroke-linecap="round" stroke-dasharray="1 8"/>
+      </svg>
+    </div>
+    <div class="tut-step" data-step="2" style="display:none">
+      <h1>Соединяй клетки по сторонам</h1>
+      <p>Путь идёт только через соседние клетки — через общую сторону, не через угол.</p>
+      <svg class="tut-figure" width="180" height="130" viewBox="0 0 180 130" aria-hidden="true">
+        <g fill="var(--cell)" stroke="var(--cell-stroke)" stroke-width="1.5">
+          <polygon points="90,14 112,27 112,53 90,66 68,53 68,27"/>
+          <polygon points="112,53 134,66 134,92 112,105 90,92 90,66"/>
+          <polygon points="46,53 68,66 68,92 46,105 24,92 24,66"/>
+        </g>
+        <path d="M90 40v52" stroke="var(--gold)" stroke-width="5" stroke-linecap="round"/>
+        <circle cx="90" cy="40" r="5.5" fill="var(--blue)"/>
+        <circle cx="90" cy="92" r="5.5" fill="var(--blue)"/>
+        <circle cx="46" cy="79" r="5.5" fill="var(--red)"/>
+      </svg>
+    </div>
+    <div class="tut-step" data-step="3" style="display:none">
+      <h1>Заставь соперника обходить</h1>
+      <p>Красному нужно соединить свои шапки слева и справа. Встань на его пути.</p>
+      <svg class="tut-figure" width="180" height="130" viewBox="0 0 180 130" aria-hidden="true">
+        <circle cx="90" cy="65" r="54" fill="none" stroke="var(--cell-stroke)" stroke-width="1.5"/>
+        <path d="M34 48a54 54 0 0 1 0 34z" fill="var(--red-fill)" stroke="var(--red)" stroke-width="1.5"/>
+        <path d="M146 48a54 54 0 0 0 0 34z" fill="var(--red-fill)" stroke="var(--red)" stroke-width="1.5"/>
+        <path d="M40 65h32" stroke="var(--red)" stroke-width="4" stroke-linecap="round" stroke-dasharray="4 6"/>
+        <path d="M108 65h32" stroke="var(--red)" stroke-width="4" stroke-linecap="round" stroke-dasharray="4 6"/>
+        <path d="M90 28v74" stroke="var(--blue)" stroke-width="7" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="tut-nav">
+      <button class="link" id="tut-back" style="visibility:hidden">Назад</button>
+      <button class="primary" id="tut-next" style="width:auto;min-width:150px">Далее</button>
+    </div>
+  </div>
+</div>
+
+<!-- итог -->
+<div class="modal" id="end">
+  <div class="card">
+    <h1 id="end-title">Победа!</h1>
+    <p id="end-copy"></p>
+    <button class="primary" id="again">Ещё раз</button>
+    <button class="link" id="end-new">Выбрать режим заново</button>
+  </div>
+</div>
+
+<script>
+(()=>{'use strict';
+
+/* =========================================================
+   0. Данные сферы Голдберга GP(3,0): 92 клетки
+      = 12 пятиугольников + 80 шестиугольников
+   ========================================================= */
+const SPHERE={
+  verts:[-0,1,0,0.27772,0.93923,-0.20177,0.55544,0.72708,-0.40355,0.72361,0.44721,-0.52573,-0.10608,0.93923,-0.32648,0.18759,0.79465,-0.57735,0.44936,0.51492,-0.73003,-0.21216,0.72708,-0.65295,0.06556,0.51492,-0.85473,-0.27639,0.44721,-0.85065,0.89443,-0.44721,0,0.79264,-0.51492,0.32648,0.55544,-0.51492,0.65295,0.27639,-0.44721,0.85065,0.96428,-0.17164,0.20177,0.79465,-0.18759,0.57735,0.48988,-0.17164,0.85473,0.89872,0.17164,0.40355,0.66152,0.17164,0.73003,0.72361,0.44721,0.52573,0.96428,-0.17164,-0.20177,0.89872,0.17164,-0.40355,0.98225,0.18759,0,0.83315,0.51492,-0.20177,0.83315,0.51492,0.20177,0.27772,0.93923,0.20177,0.60706,0.79465,0,0.55544,0.72708,0.40355,0.68656,-0.72708,0,0.49112,-0.79465,0.35682,0.21216,-0.72708,0.65295,0.34328,-0.93923,-0,0.10608,-0.93923,0.32648,0,-1,-0,-0.72361,-0.44721,-0.52573,-0.83315,-0.51492,-0.20177,-0.83315,-0.51492,0.20177,-0.72361,-0.44721,0.52573,-0.55544,-0.72708,-0.40355,-0.60706,-0.79465,-0,-0.55544,-0.72708,0.40355,-0.27772,-0.93923,-0.20177,-0.27772,-0.93923,0.20177,-0.06556,-0.51492,0.85473,-0.44936,-0.51492,0.73003,-0.18759,-0.79465,0.57735,-0.89872,-0.17164,-0.40355,-0.98225,-0.18759,-0,-0.89872,-0.17164,0.40355,-0.96428,0.17164,-0.20177,-0.96428,0.17164,0.20177,-0.89443,0.44721,-0,-0.66152,-0.17164,-0.73003,-0.48988,0.17164,-0.85473,-0.79465,0.18759,-0.57735,-0.55544,0.51492,-0.65295,-0.79264,0.51492,-0.32648,-0.34328,0.93923,0,-0.49112,0.79465,-0.35682,-0.68656,0.72708,-0,0.79264,-0.51492,-0.32648,0.79465,-0.18759,-0.57735,0.66152,0.17164,-0.73003,0.55544,-0.51492,-0.65295,0.48988,-0.17164,-0.85473,0.27639,-0.44721,-0.85065,0.30353,0.18759,-0.93417,-0.10608,0.17164,-0.97943,0.10608,-0.17164,-0.97943,-0.44936,-0.51492,-0.73003,-0.30353,-0.18759,-0.93417,-0.06556,-0.51492,-0.85473,-0.18759,-0.79465,-0.57735,0.10608,-0.93923,-0.32648,0.21216,-0.72708,-0.65295,0.49112,-0.79465,-0.35682,-0.10608,0.93923,0.32648,0.18759,0.79465,0.57735,0.44936,0.51492,0.73003,-0.21216,0.72708,0.65295,0.06556,0.51492,0.85473,-0.27639,0.44721,0.85065,0.10608,-0.17164,0.97943,-0.30353,-0.18759,0.93417,-0.66152,-0.17164,0.73003,-0.10608,0.17164,0.97943,-0.48988,0.17164,0.85473,0.30353,0.18759,0.93417,-0.79465,0.18759,0.57735,-0.79264,0.51492,0.32648,-0.55544,0.51492,0.65295,-0.49112,0.79465,0.35682],
+  grid:[0.06605,0.97689,-0.20329,0.12421,0.91566,-0.38229,0.34798,0.84389,-0.40836,0.40604,0.70036,-0.58705,0.57047,0.59155,-0.56977,-0.04149,0.84389,-0.53491,0.01657,0.70036,-0.7136,0.24033,0.62859,-0.73967,-0.12662,0.59155,-0.79627,0.9033,-0.3778,0.20329,0.87454,-0.29839,0.38229,0.73624,-0.41451,0.53491,0.63383,-0.29839,0.7136,0.47247,-0.3778,0.79627,0.91042,-0.06615,0.40836,0.80801,0.04997,0.58705,0.66971,-0.06615,0.73967,0.78422,0.24569,0.56977,0.96935,-0.24569,0,0.99875,-0.04997,0,0.97657,0.06615,-0.20476,0.93222,0.29839,-0.20476,0.85027,0.3778,-0.36648,0.97657,0.06615,0.20476,0.93222,0.29839,0.20476,0.91004,0.41451,0,0.85027,0.3778,0.36648,0.21375,0.97689,0,0.40196,0.91566,0,0.49591,0.84389,-0.20476,0.68379,0.70036,-0.20476,0.71817,0.59155,-0.36648,0.49591,0.84389,0.20476,0.68379,0.70036,0.20476,0.77774,0.62859,0,0.71817,0.59155,0.36648,0.79642,-0.59155,0.12564,0.67355,-0.70036,0.23627,0.6292,-0.62859,0.45714,0.43285,-0.70036,0.56758,0.3656,-0.59155,0.71862,0.52155,-0.84389,0.12583,0.3252,-0.91566,0.23627,0.28084,-0.84389,0.45714,0.17293,-0.97689,0.12564,-0.71817,-0.59155,-0.36648,-0.68379,-0.70036,-0.20476,-0.77774,-0.62859,-0,-0.68379,-0.70036,0.20476,-0.71817,-0.59155,0.36648,-0.49591,-0.84389,-0.20476,-0.40196,-0.91566,-0,-0.49591,-0.84389,0.20476,-0.21375,-0.97689,-0,0.12662,-0.59155,0.79627,-0.01657,-0.70036,0.7136,-0.24033,-0.62859,0.73967,-0.40604,-0.70036,0.58705,-0.57047,-0.59155,0.56977,0.04149,-0.84389,0.53491,-0.12421,-0.91566,0.38229,-0.34798,-0.84389,0.40836,-0.06605,-0.97689,0.20329,-0.85027,-0.3778,-0.36648,-0.93222,-0.29839,-0.20476,-0.91004,-0.41451,-0,-0.93222,-0.29839,0.20476,-0.85027,-0.3778,0.36648,-0.97657,-0.06615,-0.20476,-0.99875,0.04997,-0,-0.97657,-0.06615,0.20476,-0.96935,0.24569,-0,-0.78422,-0.24569,-0.56977,-0.80801,-0.04997,-0.58705,-0.66971,0.06615,-0.73967,-0.63383,0.29839,-0.7136,-0.47247,0.3778,-0.79627,-0.91042,0.06615,-0.40836,-0.87454,0.29839,-0.38229,-0.73624,0.41451,-0.53491,-0.9033,0.3778,-0.20329,-0.17293,0.97689,-0.12564,-0.3252,0.91566,-0.23627,-0.28084,0.84389,-0.45714,-0.43285,0.70036,-0.56758,-0.3656,0.59155,-0.71862,-0.52155,0.84389,-0.12583,-0.67355,0.70036,-0.23627,-0.6292,0.62859,-0.45714,-0.79642,0.59155,-0.12564,0.9033,-0.3778,-0.20329,0.87454,-0.29839,-0.38229,0.91042,-0.06615,-0.40836,0.80801,0.04997,-0.58705,0.78422,0.24569,-0.56977,0.73624,-0.41451,-0.53491,0.63383,-0.29839,-0.7136,0.66971,-0.06615,-0.73967,0.47247,-0.3778,-0.79627,0.61129,0.3778,-0.69541,0.48281,0.29839,-0.82332,0.28122,0.41451,-0.8655,0.09333,0.29839,-0.94987,-0.0858,0.3778,-0.9219,0.49652,0.06615,-0.8655,0.30863,-0.04997,-0.94987,0.10704,0.06615,-0.99205,0.29954,-0.24569,-0.9219,-0.61129,-0.3778,-0.69541,-0.48281,-0.29839,-0.82332,-0.49652,-0.06615,-0.8655,-0.30863,0.04997,-0.94987,-0.29954,0.24569,-0.9219,-0.28122,-0.41451,-0.8655,-0.09333,-0.29839,-0.94987,-0.10704,-0.06615,-0.99205,0.0858,-0.3778,-0.9219,-0.57047,-0.59155,-0.56977,-0.40604,-0.70036,-0.58705,-0.34798,-0.84389,-0.40836,-0.12421,-0.91566,-0.38229,-0.06605,-0.97689,-0.20329,-0.24033,-0.62859,-0.73967,-0.01657,-0.70036,-0.7136,0.04149,-0.84389,-0.53491,0.12662,-0.59155,-0.79627,0.79642,-0.59155,-0.12564,0.67355,-0.70036,-0.23627,0.52155,-0.84389,-0.12583,0.3252,-0.91566,-0.23627,0.17293,-0.97689,-0.12564,0.6292,-0.62859,-0.45714,0.43285,-0.70036,-0.56758,0.28084,-0.84389,-0.45714,0.3656,-0.59155,-0.71862,0.06605,0.97689,0.20329,0.12421,0.91566,0.38229,0.34798,0.84389,0.40836,0.40604,0.70036,0.58705,0.57047,0.59155,0.56977,-0.04149,0.84389,0.53491,0.01657,0.70036,0.7136,0.24033,0.62859,0.73967,-0.12662,0.59155,0.79627,0.0858,-0.3778,0.9219,-0.09333,-0.29839,0.94987,-0.28122,-0.41451,0.8655,-0.48281,-0.29839,0.82332,-0.61129,-0.3778,0.69541,-0.10704,-0.06615,0.99205,-0.30863,0.04997,0.94987,-0.49652,-0.06615,0.8655,-0.29954,0.24569,0.9219,0.29954,-0.24569,0.9219,0.30863,-0.04997,0.94987,0.49652,0.06615,0.8655,0.48281,0.29839,0.82332,0.61129,0.3778,0.69541,0.10704,0.06615,0.99205,0.09333,0.29839,0.94987,0.28122,0.41451,0.8655,-0.0858,0.3778,0.9219,-0.78422,-0.24569,0.56977,-0.80801,-0.04997,0.58705,-0.91042,0.06615,0.40836,-0.87454,0.29839,0.38229,-0.9033,0.3778,0.20329,-0.66971,0.06615,0.73967,-0.63383,0.29839,0.7136,-0.73624,0.41451,0.53491,-0.47247,0.3778,0.79627,-0.17293,0.97689,0.12564,-0.3252,0.91566,0.23627,-0.52155,0.84389,0.12583,-0.67355,0.70036,0.23627,-0.79642,0.59155,0.12564,-0.28084,0.84389,0.45714,-0.43285,0.70036,0.56758,-0.6292,0.62859,0.45714,-0.3656,0.59155,0.71862],
+  polys:[[171,135,27,0,81],[27,28,29,2,1,0],[29,30,31,4,3,2],[31,22,94,99,4],[82,81,0,1,5,83],[5,1,2,3,7,6],[3,4,99,100,101,7],[84,83,5,6,8,85],[8,6,7,101,102,103],[76,85,8,103,112],[9,36,126,90,18],[10,11,38,37,36,9],[12,13,40,39,38,11],[153,144,54,40,13],[23,14,10,9,18,19],[15,16,12,11,10,14],[155,154,153,13,12,16],[17,15,14,23,24,26],[156,155,16,15,17,157],[139,157,17,26,35],[19,18,90,91,92,20],[22,21,20,92,93,94],[24,23,19,20,21,25],[34,25,21,22,31,30],[33,35,26,24,25,34],[135,136,137,32,28,27],[32,33,34,30,29,28],[137,138,139,35,33,32],[36,37,41,128,127,126],[38,39,43,42,41,37],[40,54,55,59,43,39],[41,42,44,130,129,128],[43,59,60,62,44,42],[44,62,53,121,130],[45,63,72,108,117],[47,65,64,63,45,46],[48,49,67,66,65,47],[58,148,162,67,49],[50,46,45,117,118,119],[52,48,47,46,50,51],[61,57,58,49,48,52],[53,51,50,119,120,121],[62,60,61,52,51,53],[144,145,146,56,55,54],[56,146,147,148,58,57],[55,56,57,61,60,59],[63,64,68,77,73,72],[66,70,69,68,64,65],[162,163,164,70,66,67],[69,71,80,78,77,68],[70,164,165,166,71,69],[166,175,89,80,71],[108,72,73,74,110,109],[74,75,76,112,111,110],[77,78,79,75,74,73],[79,88,84,85,76,75],[80,89,87,88,79,78],[173,172,171,81,82,86],[87,86,82,83,84,88],[175,174,173,86,87,89],[90,126,127,131,95,91],[92,91,95,96,97,93],[99,94,93,97,104,100],[95,131,132,134,98,96],[97,96,98,107,105,104],[98,134,125,116,107],[102,101,100,104,105,106],[111,112,103,102,106,115],[115,106,105,107,116,114],[118,117,108,109,113,122],[110,111,115,114,113,109],[125,123,122,113,114,116],[124,120,119,118,122,123],[129,130,121,120,124,133],[132,133,124,123,125,134],[127,128,129,133,132,131],[176,140,136,135,171,172],[141,142,138,137,136,140],[142,160,156,157,139,138],[179,143,141,140,176,177],[161,159,160,142,141,143],[152,161,143,179,170],[158,149,145,144,153,154],[150,151,147,146,145,149],[147,151,167,163,162,148],[159,161,152,150,149,158],[151,150,152,170,168,167],[160,159,158,154,155,156],[163,167,168,169,165,164],[165,169,178,174,175,166],[168,170,179,177,178,169],[178,177,176,172,173,174]],
+  neighbors:[[1,4,25,57,76],[0,2,4,5,25,26],[1,3,5,6,23,26],[2,6,21,23,62],[0,1,5,7,57,58],[1,2,4,6,7,8],[2,3,5,8,62,66],[4,5,8,9,55,58],[5,6,7,9,66,67],[7,8,53,55,67],[11,14,20,28,60],[10,12,14,15,28,29],[11,13,15,16,29,30],[12,16,30,43,82],[10,11,15,17,20,22],[11,12,14,16,17,18],[12,13,15,18,82,87],[14,15,18,19,22,24],[15,16,17,19,78,87],[17,18,24,27,78],[10,14,21,22,60,61],[3,20,22,23,61,62],[14,17,20,21,23,24],[2,3,21,22,24,26],[17,19,22,23,26,27],[0,1,26,27,76,77],[1,2,23,24,25,27],[19,24,25,26,77,78],[10,11,29,31,60,75],[11,12,28,30,31,32],[12,13,29,32,43,45],[28,29,32,33,73,75],[29,30,31,33,42,45],[31,32,41,42,73],[35,38,46,52,69],[34,36,38,39,46,47],[35,37,39,40,47,48],[36,40,44,48,84],[34,35,39,41,69,72],[35,36,38,40,41,42],[36,37,39,42,44,45],[33,38,39,42,72,73],[32,33,39,40,41,45],[13,30,44,45,82,83],[37,40,43,45,83,84],[30,32,40,42,43,44],[34,35,47,49,52,54],[35,36,46,48,49,50],[36,37,47,50,84,88],[46,47,50,51,54,56],[47,48,49,51,88,89],[49,50,56,59,89],[34,46,53,54,69,70],[9,52,54,55,67,70],[46,49,52,53,55,56],[7,9,53,54,56,58],[49,51,54,55,58,59],[0,4,58,59,76,91],[4,7,55,56,57,59],[51,56,57,58,89,91],[10,20,28,61,63,75],[20,21,60,62,63,64],[3,6,21,61,64,66],[60,61,64,65,74,75],[61,62,63,65,66,68],[63,64,68,71,74],[6,8,62,64,67,68],[8,9,53,66,68,70],[64,65,66,67,70,71],[34,38,52,70,71,72],[52,53,67,68,69,71],[65,68,69,70,72,74],[38,41,69,71,73,74],[31,33,41,72,74,75],[63,65,71,72,73,75],[28,31,60,63,73,74],[0,25,57,77,79,91],[25,27,76,78,79,80],[18,19,27,77,80,87],[76,77,80,81,90,91],[77,78,79,81,85,87],[79,80,85,86,90],[13,16,43,83,85,87],[43,44,82,84,85,86],[37,44,48,83,86,88],[80,81,82,83,86,87],[81,83,84,85,88,90],[16,18,78,80,82,85],[48,50,84,86,89,90],[50,51,59,88,90,91],[79,81,86,88,89,91],[57,59,76,79,89,90]],
+  caps:{N:[0, 1, 4, 25, 57, 76],S:[31, 32, 33, 41, 42, 73],E:[10, 11, 14, 20, 28, 60],W:[49, 50, 51, 56, 59, 89]},
+  pent:[0, 3, 9, 10, 13, 19, 33, 34, 37, 51, 65, 81]
+};
+
+/* =========================================================
+   1. Математика
+   ========================================================= */
+const vdot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+const vcross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+const qmul=(a,b)=>[
+  a[3]*b[0]+a[0]*b[3]+a[1]*b[2]-a[2]*b[1],
+  a[3]*b[1]-a[0]*b[2]+a[1]*b[3]+a[2]*b[0],
+  a[3]*b[2]+a[0]*b[1]-a[1]*b[0]+a[2]*b[3],
+  a[3]*b[3]-a[0]*b[0]-a[1]*b[1]-a[2]*b[2]
+];
+const qrot=(q,v)=>{const t=vcross(q,v),u=vcross(q,t);
+  return [v[0]+2*q[3]*t[0]+2*u[0],v[1]+2*q[3]*t[1]+2*u[1],v[2]+2*q[3]*t[2]+2*u[2]];};
+const qnorm=q=>{const l=Math.hypot(q[0],q[1],q[2],q[3])||1;return q.map(x=>x/l);};
+const qbetween=(a,b)=>qnorm([...vcross(a,b),1+vdot(a,b)]);
+
+/* =========================================================
+   2. Клетки
+   ========================================================= */
+const CELLS=[];
+const CAPS={X:{start:SPHERE.caps.N,end:SPHERE.caps.S},O:{start:SPHERE.caps.E,end:SPHERE.caps.W}};
+const CAP_OF={};
+
+for(let i=0;i<SPHERE.polys.length;i++){
+  const x=SPHERE.verts[i*3],y=SPHERE.verts[i*3+1],z=SPHERE.verts[i*3+2];
+  const poly=SPHERE.polys[i].map(g=>[SPHERE.grid[g*3],SPHERE.grid[g*3+1],SPHERE.grid[g*3+2]]);
+  let rad=0;
+  for(const p of poly){
+    const a=Math.acos(Math.max(-1,Math.min(1,vdot([x,y,z],p))));
+    if(a>rad)rad=a;
+  }
+  CELLS.push({
+    id:i, pos:[x,y,z], poly, rad,
+    neighbors:SPHERE.neighbors[i].slice(),
+    pent:SPHERE.pent.indexOf(i)>=0,
+    owner:null, t0:0
+  });
+}
+for(const sym of ['X','O']){
+  for(const kind of ['start','end'])
+    for(const id of CAPS[sym][kind])CAP_OF[id]={sym,kind};
+}
+
+/* =========================================================
+   3. Проекция
+   ========================================================= */
+const cvs=document.querySelector('#scene');
+const ctx=cvs.getContext('2d');
+let cubeQ=[0,0,0,1], zoom=1, view3d={}, projected=[], hoverId=null, drag=null, inertia=null;
+const CAM_D=3.0;
+
+function resize(){
+  const d=Math.min(devicePixelRatio||1,2);
+  cvs.width=Math.round(innerWidth*d);
+  cvs.height=Math.round(innerHeight*d);
+  cvs._d=d;
+  ctx.setTransform(d,0,0,d,0,0);
+}
+addEventListener('resize',resize);
+resize();
+
+function updateView(){
+  const w=innerWidth,h=innerHeight,mobile=w<=760;
+  const rect=document.querySelector('.controls').getBoundingClientRect();
+  const top=mobile?96:104;
+  const bottom=(rect.top||h-80)-(mobile?52:18);
+  const span=Math.max(140,bottom-top);
+  const S=Math.max(70,Math.min((w-28)/2,span/2)*0.99)*zoom;
+  const f=S*Math.sqrt(CAM_D*CAM_D-1);
+  view3d={cx:w/2,cy:top+span/2,f,d:CAM_D,S};
+}
+
+function rawProj(v){
+  const q=qrot(cubeQ,v);
+  const k=view3d.f/(view3d.d-q[2]);
+  return {x:q[0]*k,y:-q[1]*k,z:q[2],k};
+}
+function projectPoint(v){
+  const r=rawProj(v);
+  return {x:view3d.cx+r.x,y:view3d.cy+r.y,z:r.z,k:r.k};
+}
+
+function project(){
+  updateView();
+  projected=CELLS.map(cell=>{
+    const c=rawProj(cell.pos);
+    const x=view3d.cx+c.x, y=view3d.cy+c.y;
+    const poly=cell.poly.map(v=>{
+      const p=rawProj(v);
+      return {x:view3d.cx+p.x,y:view3d.cy+p.y};
+    });
+    let r=0;
+    for(const q of poly)r=Math.max(r,Math.hypot(q.x-x,q.y-y));
+    return {cell,x,y,z:c.z,r,poly};
+  }).sort((a,b)=>a.z-b.z);
+}
+
+/* =========================================================
+   4. Звук
+   ========================================================= */
+let sound=true, actx=null;
+function ac(){
+  try{
+    if(!actx)actx=new (window.AudioContext||window.webkitAudioContext)();
+    if(actx.state==='suspended')actx.resume();
+  }catch(e){}
+  return actx;
+}
+function tone(f=600,dur=.13,vol=.06,delay=0,type='sine'){
+  if(!sound)return;
+  const a=ac(); if(!a)return;
+  const t0=a.currentTime+delay;
+  const o=a.createOscillator(),g=a.createGain();
+  o.type=type;o.frequency.setValueAtTime(f,t0);
+  g.gain.setValueAtTime(.0001,t0);
+  g.gain.exponentialRampToValueAtTime(vol,t0+.012);
+  g.gain.exponentialRampToValueAtTime(.0001,t0+dur);
+  o.connect(g);g.connect(a.destination);
+  o.start(t0);o.stop(t0+dur+.03);
+}
+const sfx={
+  toss(){tone(880,.09,.05,0);tone(1180,.11,.05,.13);},
+  win(){[523.25,659.25,783.99,1046.5].forEach((f,i)=>tone(f,.32,.07,i*.09,'triangle'));},
+  lose(){[659.25,523.25,415.3,311.13].forEach((f,i)=>tone(f,.34,.07,i*.1,'triangle'));},
+  draw(){tone(440,.18,.06,0,'sine');tone(392,.22,.06,.16,'sine');},
+  link(){tone(760,.16,.05,0,'triangle');tone(1010,.2,.05,.1,'triangle');}
+};
+
+/* =========================================================
+   5. Состояние
+   ========================================================= */
+const state={
+  mode:'pve',
+  players:{X:{type:'human',name:'Синие',symbol:'X'},O:{type:'ai',name:'УМА',symbol:'O'}},
+  current:'X',
+  gameOver:false,
+  winner:null,
+  winPath:null,        // {path:[ids], startTime, finished}
+  tossResult:null
+};
+let aiLevel=2, thinking=false, gameId=0, locked=true, started=false;
+let pending={mode:'pve',symbol:'X'};
+let lastConfig={mode:'pve',symbol:'X'};
+
+const $=s=>document.querySelector(s);
+function toast(msg){
+  const el=$('#toast');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t=setTimeout(()=>el.classList.remove('show'),2400);
+}
+
+/* =========================================================
+   6. Логика: кратчайшие пути (BFS / Дейкстра)
+   ========================================================= */
+// путь по своим камням (можно добавить виртуальный камень extra)
+function findPath(sym,extra){
+  const S=CAPS[sym].start, E=new Set(CAPS[sym].end);
+  const owned=id=>CELLS[id].owner===sym||id===extra;
+  const prev=new Map();
+  const q=[];
+  const seen=new Set();
+  for(const id of S){
+    if(owned(id)){q.push(id);seen.add(id);prev.set(id,-1);}
+  }
+  for(let h=0;h<q.length;h++){
+    const u=q[h];
+    if(E.has(u)){
+      const path=[];let v=u;
+      while(v!==-1){path.push(v);v=prev.get(v);}
+      return path.reverse();
+    }
+    for(const w of CELLS[u].neighbors){
+      if(seen.has(w)||!owned(w))continue;
+      seen.add(w);prev.set(w,u);q.push(w);
+    }
+  }
+  return null;
+}
+
+// сколько пустых клеток нужно достроить, чтобы соединить зоны (Infinity — нельзя)
+function pathCost(sym,extra){
+  const S=CAPS[sym].start, E=new Set(CAPS[sym].end);
+  const pass=id=>CELLS[id].owner===sym||CELLS[id].owner===null||id===extra;
+  const dist=new Int32Array(CELLS.length).fill(-1);
+  const q=[];
+  for(const id of S){
+    if(CELLS[id].owner===sym){dist[id]=0;q.push(id);}
+  }
+  for(let h=0;h<q.length;h++){
+    const u=q[h];
+    if(E.has(u))return dist[u];
+    for(const w of CELLS[u].neighbors){
+      if(dist[w]!==-1||!pass(w))continue;
+      // шаг по пустой клетке стоит 1, по своей — 0 (Дейкстра с весами 0/1 через deque)
+      dist[w]=dist[u]+(CELLS[w].owner===sym?0:1);
+      q.push(w);
+    }
+  }
+  return Infinity;
+}
+
+// кратчайший путь соперника, проходящий через клетку id (для подсветки блокировки)
+function shortestPathThrough(sym){
+  const S=CAPS[sym].start, E=new Set(CAPS[sym].end);
+  const pass=id=>CELLS[id].owner===sym||CELLS[id].owner===null;
+  const dist=new Map(), prev=new Map(), q=[];
+  for(const id of S){
+    if(CELLS[id].owner===sym){dist.set(id,0);prev.set(id,-1);q.push(id);}
+  }
+  let best=null;
+  for(let h=0;h<q.length;h++){
+    const u=q[h];
+    if(E.has(u)){best=u;break;}
+    for(const w of CELLS[u].neighbors){
+      if(dist.has(w)||!pass(w))continue;
+      dist.set(w,dist.get(u)+1);prev.set(w,u);q.push(w);
+    }
+  }
+  if(best===null)return null;
+  const path=[];let v=best;
+  while(v!==-1){path.push(v);v=prev.get(v);}
+  return path.reverse();
+}
+
+/* =========================================================
+   7. Отрисовка сферы
+   ========================================================= */
+function themeColors(){
+  const cs=getComputedStyle(document.body);
+  const g=k=>cs.getPropertyValue(k).trim();
+  return {
+    bg:g('--bg'),cell:g('--cell'),cellPent:g('--cell-pent'),stroke:g('--cell-stroke'),
+    blueFill:g('--blue-fill'),blue:g('--blue'),blueDeep:g('--blue-deep'),
+    redFill:g('--red-fill'),red:g('--red'),redDeep:g('--red-deep'),
+    gold:g('--gold')
+  };
+}
+
+function cellFill(cell,C,dark){
+  if(cell.owner==='X')return C.blueFill;
+  if(cell.owner==='O')return C.redFill;
+  return cell.pent?C.cellPent:C.cell;
+}
+
+function drawCells(C){
+  // силуэт сферы: радиус лимба в экранных пикселях = S
+  const sil={x:view3d.cx,y:view3d.cy}, R=view3d.S;
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(sil.x,sil.y,R,0,Math.PI*2);
+  ctx.fillStyle=C.cell;
+  ctx.fill();
+  ctx.strokeStyle=C.stroke;ctx.lineWidth=1.4;ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.beginPath();                              // всё, что вылезает за силуэт, обрезаем
+  ctx.arc(sil.x,sil.y,R*1.05,0,Math.PI*2);
+  ctx.clip();
+  ctx.lineJoin='round';
+  for(const p of projected){
+    if(p.z<0.08)continue;                      // «на ребре» — только слябы, не рисуем                     // заднее полушарие не рисуем
+    ctx.beginPath();
+    const poly=p.poly;
+    ctx.moveTo(poly[0].x,poly[0].y);
+    for(let i=1;i<poly.length;i++)ctx.lineTo(poly[i].x,poly[i].y);
+    ctx.closePath();
+    ctx.fillStyle=cellFill(p.cell,C);
+    ctx.fill();
+    // контур: у своей территории — цвет игрока, у пустой — сетка
+    let stroke=C.stroke, lw=1.1;
+    if(p.cell.owner==='X'){stroke=C.blue;lw=2.1;}
+    else if(p.cell.owner==='O'){stroke=C.red;lw=2.1;}
+    ctx.strokeStyle=stroke;
+    ctx.lineWidth=lw;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* ---------- символы (билборды из v1.1) ---------- */
+function easeOutCubic(x){return 1-Math.pow(1-x,3);}
+function pieceProgress(cell,now){
+  if(!cell.t0)return 1;
+  return Math.min(1,(now-cell.t0)/380);
+}
+function drawCross(cx,cy,r,t,fade){
+  const s1=easeOutCubic(Math.min(1,Math.max(0,t/0.5)));
+  const s2=easeOutCubic(Math.min(1,Math.max(0,(t-0.5)/0.5)));
+  const arm=r*0.72, lw=Math.max(1.6,r*0.24);
+  const segs=[
+    [cx-arm,cy-arm,cx+arm,cy+arm,s1],
+    [cx+arm,cy-arm,cx-arm,cy+arm,s2]
+  ];
+  const drawSeg=(x1,y1,x2,y2,prog,color,width)=>{
+    if(prog<=0)return;
+    ctx.beginPath();
+    ctx.moveTo(x1,y1);
+    ctx.lineTo(x1+(x2-x1)*prog,y1+(y2-y1)*prog);
+    ctx.strokeStyle=color;ctx.lineWidth=width;
+    ctx.lineCap='round';ctx.lineJoin='round';ctx.stroke();
+  };
+  for(const [x1,y1,x2,y2,pr] of segs)drawSeg(x1,y1,x2,y2,pr,fade?'rgba(255,255,255,0.75)':'rgba(255,255,255,0.9)',lw+2);
+  for(const [x1,y1,x2,y2,pr] of segs)drawSeg(x1,y1,x2,y2,pr,'#1a1a1a',lw);
+}
+function drawCircleSymbol(cx,cy,r,t,fade){
+  const prog=easeOutCubic(Math.min(1,Math.max(0,t)));
+  const lw=Math.max(1.6,r*0.24), rad=r*0.72;
+  const start=-Math.PI/2, end=start+Math.PI*2*prog*1.05;
+  ctx.beginPath();ctx.arc(cx,cy,rad,start,end);
+  ctx.strokeStyle='rgba(0,0,0,0.55)';ctx.lineWidth=lw+2;ctx.lineCap='round';ctx.stroke();
+  ctx.beginPath();ctx.arc(cx,cy,rad,start,end);
+  ctx.strokeStyle='#ffffff';ctx.lineWidth=lw;ctx.lineCap='round';ctx.stroke();
+}
+
+function drawPieces(now){
+  ctx.save();
+  ctx.beginPath();                       // символы не вылезают за силуэт сферы
+  ctx.arc(view3d.cx,view3d.cy,view3d.S*0.985,0,Math.PI*2);
+  ctx.clip();
+  for(const p of projected){
+    const o=p.cell.owner;
+    if(!o||p.z<0.02)continue;
+    const depth=Math.min(1,Math.max(0,(p.z-0.02)/0.78));
+    const r=Math.max(1.4,p.r*0.40*(0.62+0.38*depth));
+    ctx.globalAlpha=0.4+0.6*depth;
+    const t=pieceProgress(p.cell,now);
+    if(o==='X')drawCross(p.x,p.y,r,t);
+    else drawCircleSymbol(p.x,p.y,r,t);
+  }
+  ctx.restore();
+}
+
+/* ---------- подсветка опасных/полезных клеток ---------- */
+let hoverPreview=null;   // {id, mine:[ids], block:[ids], wins:boolean}
+function computeHoverPreview(id){
+  const me=state.current;
+  if(!started||state.gameOver||state.lockedPreview)return null;
+  if(state.players[me].type!=='human')return null;   // не подсказываем за ИИ
+  const mine=findPath(me,id);            // если этот ход соединяет мои шапки
+  const oppSym=me==='X'?'O':'X';
+  const oppPath=shortestPathThrough(oppSym);
+  const block=[];
+  if(oppPath&&oppPath.includes(id))block.push(id);
+  return {id,mine,wins:!!mine,block};
+}
+
+function polyPath(p){
+  ctx.beginPath();
+  const poly=p.poly;
+  ctx.moveTo(poly[0].x,poly[0].y);
+  for(let i=1;i<poly.length;i++)ctx.lineTo(poly[i].x,poly[i].y);
+  ctx.closePath();
+}
+function strokeCell(p,color,width,glow){
+  ctx.save();
+  polyPath(p);
+  ctx.strokeStyle=color;
+  ctx.lineWidth=width;
+  ctx.lineJoin='round';
+  if(glow){ctx.shadowColor=color;ctx.shadowBlur=glow;}
+  ctx.stroke();
+  ctx.restore();
+}
+
+/* видимые участки пути: точки на обратной стороне разрывают линию */
+function pathRuns(ids,findP){
+  const runs=[];let cur=[];
+  for(const id of ids){
+    const p=findP(id);
+    if(p&&p.z>0.05)cur.push(p);
+    else{ if(cur.length>1)runs.push(cur); cur=[]; }
+  }
+  if(cur.length>1)runs.push(cur);
+  return runs;
+}
+
+function drawHoverPreview(now){
+  if(!hoverPreview)return;
+  const C=themeColors();
+  const findP=id=>projected.find(p=>p.cell.id===id);
+
+  // зелёный путь, который замкнёт свои шапки
+  if(hoverPreview.mine&&hoverPreview.mine.length>1){
+    const cells=[];
+    for(const id of hoverPreview.mine){
+      const p=findP(id);
+      if(p&&p.z>0.05)cells.push(p);
+    }
+    // заливка пути
+    ctx.save();
+    for(const p of cells){
+      polyPath(p);
+      ctx.fillStyle='rgba(46,158,91,.30)';
+      ctx.fill();
+    }
+    for(const p of cells){
+      polyPath(p);
+      ctx.strokeStyle='rgba(46,158,91,.95)';
+      ctx.lineWidth=Math.max(2.2,innerWidth*0.0035);
+      ctx.lineJoin='round';
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // клетка соперника на его кратчайшем пути — красный контур
+  if(hoverPreview.block.length){
+    const p=findP(hoverPreview.block[0]);
+    if(p){
+      const pulse=0.6+0.4*Math.sin(now/180);
+      strokeCell(p,`rgba(216,64,58,${pulse.toFixed(3)})`,Math.max(2.4,innerWidth*0.0045),16);
+    }
+  }
+
+  // контур под курсором
+  const hp=findP(hoverPreview.id);
+  if(hp){
+    const col=hoverPreview.wins?'rgba(46,158,91,.95)'
+      :hoverPreview.block.length?'rgba(216,64,58,.9)':'rgba(47,127,209,.9)';
+    strokeCell(hp,col,Math.max(2.4,innerWidth*0.0045),14);
+  }
+}
+
+/* ---------- победный путь ---------- */
+function drawWinPath(now){
+  const w=state.winPath;
+  if(!w)return;
+  const T=900;
+  const t=Math.min(1,(now-w.startTime)/T);
+  const C=themeColors();
+  const findP=id=>projected.find(q=>q.cell.id===id);
+  const all=w.path.map(findP).filter(p=>p&&p.z>0.05);
+  if(!all.length)return;
+
+  const shown=Math.max(1,Math.ceil(all.length*t));   // сколько клеток уже «зажглось»
+  ctx.save();
+  ctx.lineJoin='round';
+  for(let i=0;i<all.length;i++){
+    const p=all[i];
+    const lit=i<shown;
+    polyPath(p);
+    ctx.fillStyle=lit?'rgba(242,183,53,.42)':'rgba(242,183,53,.10)';
+    ctx.fill();
+    if(lit){
+      ctx.save();
+      ctx.shadowColor=C.gold;ctx.shadowBlur=22;
+      ctx.strokeStyle=C.gold;
+      ctx.lineWidth=Math.max(3,innerWidth*0.006);
+      ctx.stroke();
+      ctx.restore();
+    }else{
+      ctx.strokeStyle='rgba(242,183,53,.35)';
+      ctx.lineWidth=1.5;
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+
+  if(t>=1&&!w.finished){
+    w.finished=true;
+    sfx.link();
+    setTimeout(()=>showEndModal(state.winner),500);
+  }
+}
+
+function draw(now){
+  const d=cvs._d;
+  ctx.setTransform(d,0,0,d,0,0);
+  ctx.clearRect(0,0,innerWidth,innerHeight);
+  const C=themeColors();
+  ctx.fillStyle=C.bg;
+  ctx.fillRect(0,0,innerWidth,innerHeight);
+
+  if(inertia){
+    cubeQ=qnorm(qmul(inertia.dq,cubeQ));
+    inertia.v*=0.94;
+    if(inertia.v<0.004)inertia=null;
+  }
+
+  project();
+  drawCells(C);
+  drawPieces(now);
+  drawHoverPreview(now);
+  drawWinPath(now);
+  drawMinimap(C);
+
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+
+/* =========================================================
+   8. Мини-карта
+   ========================================================= */
+const mapCvs=document.querySelector('#map');
+const mapCtx=mapCvs.getContext('2d');
+const MAP_Q=(()=>{                       // фиксированный ракурс: север вверху
+  const a=-Math.PI/9, b=Math.PI/16;
+  const qy=[0,Math.sin(a/2),0,Math.cos(a/2)];
+  const qx=[Math.sin(b/2),0,0,Math.cos(b/2)];
+  return qnorm(qmul(qx,qy));
+})();
+
+function drawMinimap(C){
+  if($('#minimap').classList.contains('hidden'))return;
+  const W=mapCvs.width, H=mapCvs.height;
+  mapCtx.clearRect(0,0,W,H);
+  const R=Math.min(W,H)*0.46, cx=W/2, cy=H/2, dd=3.0;
+  const f=R*Math.sqrt(dd*dd-1);
+  const proj=v=>{
+    const q=qrot(MAP_Q,v);
+    const k=f/(dd-q[2]);
+    return {x:cx+q[0]*k,y:cy-q[1]*k,z:q[2]};
+  };
+  const cells=CELLS.map(cell=>{
+    const c=proj(cell.pos);
+    return {cell,c,poly:cell.poly.map(proj)};
+  }).sort((a,b)=>a.c.z-b.c.z);
+  // задняя полусфера — приглушённая, передняя — полная
+  mapCtx.save();
+  for(const it of cells){
+    mapCtx.globalAlpha=it.c.z<0?0.5:1;
+    mapCtx.beginPath();
+    it.poly.forEach((p,i)=>i?mapCtx.lineTo(p.x,p.y):mapCtx.moveTo(p.x,p.y));
+    mapCtx.closePath();
+    mapCtx.fillStyle=cellFill(it.cell,C);
+    mapCtx.fill();
+    mapCtx.strokeStyle=C.stroke;
+    mapCtx.lineWidth=0.8;
+    mapCtx.stroke();
+  }
+  mapCtx.restore();
+  // затемняем заднюю полусферу, чтобы читалась глубина
+  mapCtx.save();
+  mapCtx.globalCompositeOperation='source-atop';
+  mapCtx.fillStyle='rgba(0,0,0,0.0)';
+  mapCtx.restore();
+}
+
+/* =========================================================
+   9. HUD
+   ========================================================= */
+function turnLabelText(){
+  if(state.gameOver){
+    if(state.winner==='draw')return 'Ничья';
+    const p=state.players[state.winner];
+    if(state.mode==='pve')return p.type==='human'?'Победа!':'Поражение';
+    return `Победа ${state.winner==='X'?'синих':'красных'}`;
+  }
+  const cur=state.current,p=state.players[cur];
+  if(thinking)return 'ИИ думает…';
+  if(state.mode==='hotseat')return `Ход ${cur==='X'?'синих':'красных'}`;
+  return p.type==='human'?'Твой ход':'Ход ИИ';
+}
+const HINT_FULL='Соедини свои шапки. Перекрой путь сопернику.';
+const HINT_SHORT='Соедини шапки.';
+function paintHint(){
+  const el=$('#hint');
+  el.textContent=innerWidth<560?HINT_SHORT:HINT_FULL;
+  el.title=HINT_FULL;
+}
+addEventListener('resize',paintHint);
+
+function updateHud(){
+  let nx=0,no=0;
+  for(const c of CELLS){if(c.owner==='X')nx++;else if(c.owner==='O')no++;}
+  $('#score-x').textContent=nx;
+  $('#score-o').textContent=no;
+  const dx=pathCost('X'),dO=pathCost('O');
+  const fmt=d=>d===Infinity?'—':(d===0?'✦':String(d));
+  $('#dist-x').textContent=fmt(dx);
+  $('#dist-o').textContent=fmt(dO);
+  $('#turn-label').textContent=turnLabelText();
+  $('#mode-label').textContent=state.mode==='pve'
+    ? 'PvE · '+['','Easy','Medium','Hard'][aiLevel]
+    : 'Hot-seat · 2 игрока';
+}
+
+/* =========================================================
+   10. Ход и партия
+   ========================================================= */
+function resetBoard(){
+  for(const c of CELLS){c.owner=null;c.t0=0;}
+  for(const sym of ['X','O'])
+    for(const id of CAPS[sym].start.concat(CAPS[sym].end))CELLS[id].owner=sym;
+  state.gameOver=false;
+  state.winner=null;
+  state.winPath=null;
+  hoverPreview=null;
+}
+
+function placePiece(cellId,symbol){
+  const cell=CELLS[cellId];
+  if(cell.owner!==null)return false;
+  cell.owner=symbol;
+  cell.t0=performance.now();
+  hoverPreview=null;
+  hoverId=null;
+  tone(symbol==='X'?440:660,.16,.06);
+  tone(880,.04,.04,0,'sine');
+  updateHud();
+
+  const path=findPath(symbol);
+  if(path){
+    state.winPath={path,startTime:performance.now(),finished:false};
+    state.gameOver=true;
+    state.winner=symbol;
+    return true;
+  }
+  if(CELLS.every(c=>c.owner!==null)){
+    state.gameOver=true;
+    state.winner='draw';
+    setTimeout(()=>{sfx.draw();showEndModal('draw');},300);
+    return true;
+  }
+  return true;
+}
+
+function nextTurn(){
+  state.current=state.current==='X'?'O':'X';
+  hoverPreview=null;
+  updateHud();
+  scheduleAI();
+}
+
+function scheduleAI(){
+  if(state.gameOver)return;
+  const cur=state.current;
+  if(state.players[cur].type!=='ai')return;
+  const my=gameId;
+  thinking=true;
+  updateHud();
+  setTimeout(()=>{
+    if(my!==gameId||state.gameOver||state.current!==cur)return;
+    thinking=false;
+    const move=chooseAIMove(cur);
+    if(move===null){updateHud();return;}
+    placePiece(move,cur);
+    if(!state.gameOver)nextTurn();
+    else updateHud();
+  },180);
+}
+
+function tap(cellId){
+  if(locked||!started||state.gameOver)return;
+  if(state.winPath&&!state.winPath.finished)return;
+  const cur=state.current;
+  if(state.players[cur].type!=='human')return;
+  const cell=CELLS[cellId];
+  if(cell.owner!==null){toast('Клетка занята');return;}
+  placePiece(cellId,cur);
+  if(!state.gameOver)nextTurn();
+}
+
+/* =========================================================
+   11. ИИ: оценка через кратчайшие пути + minimax
+   ========================================================= */
+let NODES=0, ABORT=false;
+
+function aiEval(aiS,plS){
+  const a=pathCost(aiS), p=pathCost(plS);
+  const A=a===Infinity?999:a, P=p===Infinity?999:p;
+  if(A===0)return 10000;
+  if(P===0)return -10000;
+  return P-A;
+}
+
+function candidates(limit){
+  // клетки рядом с камнями + клетки на путях обоих игроков
+  const near=new Set();
+  for(const c of CELLS){
+    if(c.owner===null)continue;
+    for(const n of c.neighbors)if(CELLS[n].owner===null)near.add(n);
+    for(const n of c.neighbors){
+      for(const m of CELLS[n].neighbors)if(CELLS[m].owner===null)near.add(m);
+    }
+  }
+  const px=pathCost('X'),po=pathCost('O');
+  const pX=shortestPathThrough('X'),pO=shortestPathThrough('O');
+  const score=id=>{
+    let s=0;
+    if(pX&&pX.includes(id))s+=3;
+    if(pO&&pO.includes(id))s+=4;
+    return s;
+  };
+  const arr=[...near].filter(id=>CELLS[id].owner===null);
+  arr.sort((a,b)=>score(b)-score(a));
+  return limit?arr.slice(0,limit):arr;
+}
+
+function minimax(depth,alpha,beta,maximizing,aiS,plS,deadline){
+  if(ABORT)return {score:0,move:null};
+  if(((++NODES)&63)===0&&performance.now()>deadline){ABORT=true;return {score:0,move:null};}
+
+  const pa=findPath(aiS);
+  if(pa)return {score:1000+depth*100,move:null};
+  const pp=findPath(plS);
+  if(pp)return {score:-1000-depth*100,move:null};
+  if(depth===0)return {score:aiEval(aiS,plS),move:null};
+
+  const moves=candidates(depth>=2?24:0);
+  if(!moves.length)return {score:aiEval(aiS,plS),move:null};
+
+  let bestMove=null;
+  if(maximizing){
+    let max=-Infinity;
+    for(const id of moves){
+      CELLS[id].owner=aiS;
+      const r=minimax(depth-1,alpha,beta,false,aiS,plS,deadline);
+      CELLS[id].owner=null;
+      if(ABORT)return {score:0,move:null};
+      if(r.score>max){max=r.score;bestMove=id;}
+      if(max>alpha)alpha=max;
+      if(beta<=alpha)break;
+    }
+    return {score:max,move:bestMove};
+  }else{
+    let min=Infinity;
+    for(const id of moves){
+      CELLS[id].owner=plS;
+      const r=minimax(depth-1,alpha,beta,true,aiS,plS,deadline);
+      CELLS[id].owner=null;
+      if(ABORT)return {score:0,move:null};
+      if(r.score<min){min=r.score;bestMove=id;}
+      if(min<beta)beta=min;
+      if(beta<=alpha)break;
+    }
+    return {score:min,move:bestMove};
+  }
+}
+
+function safeMovesFor(sym){
+  const out=[];
+  for(const c of CELLS){
+    if(c.owner!==null)continue;
+    if(findPath(sym,c.id))out.push(c.id);      // ход, сразу соединяющий зоны
+  }
+  return out;
+}
+
+function chooseAIMove(symbol){
+  const empty=[];
+  for(const c of CELLS)if(c.owner===null)empty.push(c.id);
+  if(!empty.length)return null;
+  const opp=symbol==='X'?'O':'X';
+
+  // 1) сразу победить
+  const win=safeMovesFor(symbol);
+  if(win.length)return win[0];
+
+  // 2) не дать победить сопернику
+  const oppWin=safeMovesFor(opp);
+  if(oppWin.length)return oppWin[0];
+
+  // Easy: 35% случайный разумный ход
+  if(aiLevel===1&&Math.random()<0.35){
+    const mv=candidates(14);
+    const pool=mv.length?mv:empty;
+    return pool[(Math.random()*pool.length)|0];
+  }
+
+  const maxDepth=aiLevel===1?1:aiLevel===2?2:3;
+  const deadline=performance.now()+(aiLevel===3?1500:aiLevel===2?500:200);
+  let best=null;
+  for(let d=1;d<=maxDepth;d++){
+    NODES=0;ABORT=false;
+    const r=minimax(d,-Infinity,Infinity,true,symbol,opp,deadline);
+    if(ABORT)break;
+    if(r.move!==null)best=r.move;
+    if(Math.abs(r.score)>9000)break;
+  }
+  if(best!==null)return best;
+  const mv=candidates(0);
+  return mv.length?mv[0]:empty[0];
+}
+
+/* =========================================================
+   12. Жребий и запуск
+   ========================================================= */
+function tossLabel(sym){
+  const p=state.players[sym];
+  if(state.mode==='hotseat')return `Первыми ходят ${sym==='X'?'синие':'красные'}`;
+  return p.type==='human'?'Тебе выпало ходить первым':'Первым ходит ИИ';
+}
+
+function showTossAnimation(firstSymbol,onDone,token){
+  const el=$('#toss-overlay'),coin=$('#coin'),label=$('#toss-label');
+  el.classList.add('show','flip');
+  coin.classList.remove('result');
+  label.textContent='Жребий…';
+  sfx.toss();
+  let n=0;
+  const iv=setInterval(()=>{coin.textContent=(n++%2===0)?'×':'●';},80);
+  setTimeout(()=>{
+    clearInterval(iv);
+    if(token!==gameId){el.classList.remove('show','flip');return;}
+    el.classList.remove('flip');
+    coin.textContent=firstSymbol==='X'?'×':'●';
+    coin.classList.add('result');
+    label.textContent=tossLabel(firstSymbol);
+    setTimeout(()=>{
+      el.classList.remove('show');
+      coin.classList.remove('result');
+      if(token===gameId)onDone();
+    },520);
+  },900);
+}
+
+function startGame(cfg){
+  gameId++;
+  started=false;
+  locked=true;
+  thinking=false;
+  lastConfig={mode:cfg.mode,symbol:cfg.symbol};
+  state.mode=cfg.mode;
+
+  const humanSym=cfg.symbol==='random'?(Math.random()<0.5?'X':'O'):cfg.symbol;
+  if(cfg.mode==='pve'){
+    const aiSym=humanSym==='X'?'O':'X';
+    state.players.X={type:humanSym==='X'?'human':'ai',name:humanSym==='X'?'Игрок':'УМА',symbol:'X'};
+    state.players.O={type:humanSym==='O'?'human':'ai',name:humanSym==='O'?'Игрок':'УМА',symbol:'O'};
+  }else{
+    const p2=humanSym==='X'?'O':'X';
+    state.players[humanSym]={type:'human',name:humanSym==='X'?'Синие':'Красные',symbol:humanSym};
+    state.players[p2]={type:'human',name:p2==='X'?'Синие':'Красные',symbol:p2};
+  }
+
+  resetBoard();
+  state.current='X';
+  state.tossResult=null;
+  updateHud();
+
+  const first=Math.random()<0.5?'X':'O';
+  state.current=first;
+  state.tossResult=first;
+
+  const token=gameId;
+  showTossAnimation(first,()=>{
+    locked=false;
+    started=true;
+    updateHud();
+    toast(tossLabel(first));
+    if(state.players[first].type==='ai')scheduleAI();
+  },token);
+}
+
+/* =========================================================
+   13. Итог
+   ========================================================= */
+function showEndModal(winner){
+  const title=$('#end-title'),copy=$('#end-copy');
+  if(winner==='draw'){
+    title.textContent='Ничья';
+    copy.textContent='Поле заполнено, но ни один путь не замкнулся.';
+    sfx.draw();
+  }else{
+    const p=state.players[winner];
+    const isPlayerWin=state.mode==='pve'?p.type==='human':true;
+    if(state.mode==='pve'){
+      title.textContent=isPlayerWin?'Победа!':'Поражение';
+      copy.textContent=isPlayerWin
+        ?'Ты соединил свои шапки непрерывным путём.'
+        :'Соперник соединил свои шапки. Путь был открыт.';
+    }else{
+      title.textContent=winner==='X'?'Победа синих':'Победа красных';
+      copy.textContent=winner==='X'
+        ?'Синие соединили верхнюю и нижнюю шапки.'
+        :'Красные соединили левую и правую шапки.';
+    }
+    if(state.mode==='pve'&&!isPlayerWin)sfx.lose(); else sfx.win();
+  }
+  updateHud();
+  $('#end').classList.add('show');
+}
+
+/* =========================================================
+   14. Интерфейс
+   ========================================================= */
+function setSeg(sel,value){
+  document.querySelectorAll(sel+' button').forEach(b=>{
+    b.classList.toggle('active',b.dataset.v===String(value));
+  });
+}
+function openNewGame(){
+  gameId++;
+  $('#toss-overlay').classList.remove('show','flip');
+  locked=true;started=false;thinking=false;
+  if($('#tutorial')){$('#tutorial').classList.remove('show');$('#tutorial')._onDone=null;}
+  $('#end').classList.remove('show');
+  $('#settings').classList.remove('show');
+  setSeg('#ng-mode',pending.mode);
+  setSeg('#ng-sym',pending.symbol);
+  $('#ng-sym-title').textContent=pending.mode==='pve'?'Играть за':'Цвет первого игрока';
+  $('#newgame').classList.add('show');
+}
+function closeNewGame(){$('#newgame').classList.remove('show');}
+
+document.querySelectorAll('#ng-mode button').forEach(b=>{
+  b.onclick=()=>{
+    pending.mode=b.dataset.v;
+    setSeg('#ng-mode',pending.mode);
+    $('#ng-sym-title').textContent=pending.mode==='pve'?'Играть за':'Цвет первого игрока';
+  };
+});
+document.querySelectorAll('#ng-sym button').forEach(b=>{
+  b.onclick=()=>{pending.symbol=b.dataset.v;setSeg('#ng-sym',pending.symbol);};
+});
+
+/* ---------- туториал ---------- */
+const TUT_KEY='kubesphere.tutorialSeen';
+const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
+const lsSet=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
+let tutorialSeen=lsGet(TUT_KEY)==='1';
+let tutStep=1;
+function showTutorial(onDone){
+  tutStep=1;
+  renderTutStep();
+  $('#tutorial').classList.add('show');
+  $('#tutorial')._onDone=onDone;
+}
+function renderTutStep(){
+  document.querySelectorAll('.tut-step').forEach(el=>{
+    el.style.display=el.dataset.step===String(tutStep)?'':'none';
+  });
+  $('#tut-back').style.visibility=tutStep===1?'hidden':'visible';
+  $('#tut-next').textContent=tutStep===3?'Понятно, играть':'Далее';
+}
+$('#tut-next').onclick=()=>{
+  if(tutStep<3){tutStep++;renderTutStep();return;}
+  tutorialSeen=true;
+  lsSet(TUT_KEY,'1');
+  $('#tutorial').classList.remove('show');
+  const cb=$('#tutorial')._onDone;
+  if(cb)cb();
+};
+$('#tut-back').onclick=()=>{if(tutStep>1){tutStep--;renderTutStep();}};
+
+$('#ng-start').onclick=()=>{
+  ac();
+  closeNewGame();
+  const cfg={mode:pending.mode,symbol:pending.symbol};
+  if(!tutorialSeen)showTutorial(()=>startGame(cfg));
+  else startGame(cfg);
+};
+
+$('#again').onclick=()=>{
+  $('#end').classList.remove('show');
+  startGame(lastConfig);
+};
+$('#end-new').onclick=()=>{pending={...lastConfig};openNewGame();};
+$('#restart').onclick=()=>{pending={...lastConfig};openNewGame();};
+
+$('#zoom-in').onclick=()=>zoom=Math.min(1.7,zoom*1.12);
+$('#zoom-out').onclick=()=>zoom=Math.max(.55,zoom/1.12);
+$('#reset').onclick=()=>{cubeQ=[0,0,0,1];zoom=1;inertia=null;};
+$('#theme').onclick=()=>document.body.classList.toggle('dark');
+$('#map-btn').onclick=()=>$('#minimap').classList.toggle('hidden');
+
+const ICO_SPEAKER='<svg viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path d="M18 6.5a7.6 7.6 0 0 1 0 11"/></svg>';
+const ICO_MUTE='<svg viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>';
+function paintSound(){
+  $('#sound').innerHTML=sound?ICO_SPEAKER:ICO_MUTE;
+  $('#sound').classList.toggle('active',!sound);
+  $('#st-sound').innerHTML=sound?ICO_SPEAKER:ICO_MUTE;
+}
+$('#sound').onclick=()=>{sound=!sound;paintSound();if(sound)tone(660,.1,.05);};
+
+function paintLevel(){
+  const n=['','Easy','Medium','Hard'][aiLevel];
+  $('#difficulty').innerHTML='<svg viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="11" rx="3"/><path d="M12 4v4"/><path d="M9 13h.01"/><path d="M15 13h.01"/></svg><span class="lbl">'+n+'</span>';
+}
+$('#difficulty').onclick=()=>{
+  aiLevel=aiLevel%3+1;
+  paintLevel();setSeg('#st-level',aiLevel);
+  updateHud();
+};
+
+$('#settings-btn').onclick=()=>{
+  paintSound();
+  setSeg('#st-mode',pending.mode);
+  setSeg('#st-level',aiLevel);
+  $('#st-theme').textContent=document.body.classList.contains('dark')?'ТЁМНАЯ':'СВЕТЛАЯ';
+  $('#st-map').textContent=$('#minimap').classList.contains('hidden')?'ВЫКЛ':'ВКЛ';
+  $('#settings').classList.add('show');
+};
+$('#st-close').onclick=()=>$('#settings').classList.remove('show');
+document.querySelectorAll('#st-mode button').forEach(b=>{
+  b.onclick=()=>{pending.mode=b.dataset.v;setSeg('#st-mode',pending.mode);};
+});
+document.querySelectorAll('#st-level button').forEach(b=>{
+  b.onclick=()=>{aiLevel=Number(b.dataset.v);setSeg('#st-level',aiLevel);paintLevel();updateHud();};
+});
+$('#st-theme').onclick=()=>{
+  document.body.classList.toggle('dark');
+  $('#st-theme').textContent=document.body.classList.contains('dark')?'ТЁМНАЯ':'СВЕТЛАЯ';
+};
+$('#st-sound').onclick=()=>{sound=!sound;paintSound();if(sound)tone(660,.1,.05);};
+$('#st-map').onclick=()=>{
+  $('#minimap').classList.toggle('hidden');
+  $('#st-map').textContent=$('#minimap').classList.contains('hidden')?'ВЫКЛ':'ВКЛ';
+};
+$('#st-newgame').onclick=()=>openNewGame();
+
+/* =========================================================
+   15. Указатель, зум, клавиатура
+   ========================================================= */
+function arcVector(x,y){
+  const rad=Math.max(40,Math.hypot(innerWidth,innerHeight)*0.5);
+  const nx=(x-innerWidth*.5)/rad, ny=-(y-innerHeight*.5)/rad;
+  const d=nx*nx+ny*ny;
+  return [nx,ny,d<=.5?Math.sqrt(1-d):.5/Math.sqrt(d)];
+}
+function pointInPoly(poly,x,y){
+  let inside=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const xi=poly[i].x,yi=poly[i].y,xj=poly[j].x,yj=poly[j].y;
+    if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))inside=!inside;
+  }
+  return inside;
+}
+
+// попадание по полигону клетки: приоритет — клетка, содержащая точку,
+// среди них — ближайшая к центру. Глубина роли не играет.
+function hitTest(x,y){
+  let best=null,bestScore=Infinity;
+  for(const p of projected){
+    if(p.z<0.02)continue;
+    const d=Math.hypot(x-p.x,y-p.y);
+    if(d>p.r*1.2)continue;
+    const norm=d/Math.max(1,p.r);
+    const score=pointInPoly(p.poly,x,y)?norm:norm+1;
+    if(score<bestScore){bestScore=score;best=p.cell.id;}
+  }
+  return best;
+}
+
+cvs.addEventListener('pointerdown',e=>{
+  cvs.setPointerCapture(e.pointerId);
+  drag={x:e.clientX,y:e.clientY,arc:arcVector(e.clientX,e.clientY),moved:false,lastDq:null};
+  inertia=null;
+});
+cvs.addEventListener('pointermove',e=>{
+  if(!drag){
+    if(e.pointerType==='mouse'){
+      const id=hitTest(e.clientX,e.clientY);
+      if(id!==hoverId){
+        hoverId=id;
+        hoverPreview=id===null?null:computeHoverPreview(id);
+      }
+    }
+    return;
+  }
+  const dx=e.clientX-drag.x, dy=e.clientY-drag.y;
+  if(Math.hypot(dx,dy)>5)drag.moved=true;
+  if(drag.moved){
+    const v=arcVector(e.clientX,e.clientY);
+    const dq=qbetween(drag.arc,v);
+    if(Number.isFinite(dq[3])){cubeQ=qnorm(qmul(dq,cubeQ));drag.lastDq=dq;}
+    drag.arc=v;drag.x=e.clientX;drag.y=e.clientY;
+    hoverId=null;hoverPreview=null;
+  }
+});
+cvs.addEventListener('pointerup',e=>{
+  if(!drag)return;
+  if(!drag.moved){
+    const id=hitTest(e.clientX,e.clientY);
+    if(id!==null)tap(id);
+  }else if(drag.lastDq){
+    inertia={dq:drag.lastDq,v:1};
+  }
+  drag=null;
+});
+cvs.addEventListener('pointercancel',()=>{drag=null;});
+cvs.addEventListener('pointerleave',()=>{hoverId=null;hoverPreview=null;});
+cvs.addEventListener('wheel',e=>{
+  zoom=Math.max(.55,Math.min(1.7,zoom*(e.deltaY<0?1.08:.92)));
+},{passive:true});
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='r'||e.key==='R'||e.key==='к'||e.key==='К'){
+    pending={...lastConfig};openNewGame();return;
+  }
+  const k=0.06;
+  if(e.key==='ArrowLeft')cubeQ=qnorm(qmul([0,Math.sin(-k),0,Math.cos(k)],cubeQ));
+  if(e.key==='ArrowRight')cubeQ=qnorm(qmul([0,Math.sin(k),0,Math.cos(k)],cubeQ));
+  if(e.key==='ArrowUp')cubeQ=qnorm(qmul([Math.sin(-k),0,0,Math.cos(k)],cubeQ));
+  if(e.key==='ArrowDown')cubeQ=qnorm(qmul([Math.sin(k),0,0,Math.cos(k)],cubeQ));
+});
+
+/* =========================================================
+   16. Старт
+   ========================================================= */
+paintHint();
+paintSound();
+paintLevel();
+resetBoard();
+updateHud();
+started=false;
+
+{ // стартовый ракурс: своя шапка целиком + шапка соперника
+  cubeQ=qnorm([0.34155,-0.25115,0.03125,0.90515]);
+}
+
+openNewGame();
+
+/* ---------- отладочный хук ---------- */
+function simulate(nGames,level){
+  const saved=aiLevel;
+  if(level)aiLevel=Math.max(1,Math.min(3,level|0));
+  const res={X:0,O:0,draw:0,avgLen:0};
+  let total=0;
+  for(let g=0;g<nGames;g++){
+    resetBoard();
+    let turn='X',over=false,moves=0;
+    while(!over&&moves<CELLS.length){
+      const id=chooseAIMove(turn);
+      if(id===null)break;
+      CELLS[id].owner=turn;moves++;
+      if(findPath(turn)){res[turn]++;over=true;}
+      else turn=turn==='X'?'O':'X';
+    }
+    if(!over)res.draw++;
+    total+=moves;
+  }
+  aiLevel=saved;
+  res.avgLen=total/nGames;
+  return res;
+}
+
+window.__SPHERE__={
+  state,CELLS,CAPS,SPHERE,findPath,pathCost,shortestPathThrough,tap,placePiece,startGame,
+  chooseAIMove,minimax,aiEval,simulate,resetBoard,
+  setLevel:l=>{aiLevel=Math.max(1,Math.min(3,l|0));paintLevel();updateHud();},
+  getLevel:()=>aiLevel,
+  debugNodes:()=>({nodes:NODES,abort:ABORT,level:aiLevel}),
+  project:()=>projected.map(p=>({id:p.cell.id,x:p.x,y:p.y,r:p.r,z:p.z})),
+  setView:q=>{cubeQ=q;},
+  hover:id=>{hoverId=id;hoverPreview=id===null?null:computeHoverPreview(id);return hoverPreview;},
+  previewFor:id=>{
+    const saved=state.current;
+    const r=computeHoverPreview(id);
+    state.current=saved;
+    return r?{id:r.id,wins:r.wins,pathLen:r.mine?r.mine.length:0,block:r.block.slice()}:null;
+  },
+  visibleFree:()=>projected.filter(p=>p.z>0.1&&!p.cell.owner).map(p=>p.cell.id)
+};
+})();
+</script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","spa":2}' crossorigin="anonymous"></script>
+</body>
+</html>
